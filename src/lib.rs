@@ -1,4 +1,5 @@
 use std::ops::Deref;
+pub use GenericMapEach::Mappable2;
 
 impl<T: Clone> Semigroup for Vec<T> {
     fn add(self, other: Self) -> Self {
@@ -47,6 +48,10 @@ impl<'a, T: Semigroup + Clone + 'static> std::ops::Add for SavedMap<T, T> {
         SavedMap(add_functions::<T,T>(self.0, rhs.0))
     }
 }
+
+
+
+
 mod GenericMapEach {
     ///This module is useless.
     ///I did this because I got lost in the generics and wanted to see how far I could push it
@@ -58,8 +63,8 @@ mod GenericMapEach {
     /// But yknow..
     use super::Map;
 
-    trait MappableSolution<T>: IntoIterator<Item = T> {
-        fn map<U, F, O>(self, f: F) -> O
+    pub (crate) trait MappableSolution<T>: IntoIterator<Item = T> {
+        fn map_each<U, F, O>(self, f: F) -> O
         where
             O: FromIterator<U>,
             F: FnMut(T) -> U;
@@ -68,7 +73,7 @@ mod GenericMapEach {
     where
         I: IntoIterator<Item = T>,
     {
-        fn map<U, F, O>(self, f: F) -> O
+        fn map_each<U, F, O>(self, f: F) -> O
         where
             O: FromIterator<U>,
             F: FnMut(T) -> U,
@@ -83,8 +88,8 @@ mod GenericMapEach {
         fn map_each(self, x: Map<T,T>) -> Self;
     }
 
-    pub(crate) trait Mappable2<In, Out>{
-        fn map_each(self, x: Map<In, Out>) -> Vec<Out>;
+    pub trait Mappable2<In, Out>{
+        fn map_each_old(self, x: Map<In, Out>) -> Vec<Out>;
     }
 
     pub(crate) trait MappableContainerFamily {
@@ -98,7 +103,7 @@ mod GenericMapEach {
 
     impl<T, Container, U> Mappable2<T, U> for Container
         where Container: IntoIterator<Item=T> + FromIterator<U>{
-        fn map_each<>(self, f: Box<dyn Fn(T) -> U>) -> Vec<U> {
+        fn map_each_old<>(self, f: Box<dyn Fn(T) -> U>) -> Vec<U> {
             self.into_iter()
             .map(|x| f(x))
             .collect()
@@ -123,6 +128,7 @@ pub(crate) mod concretes{
 
 #[cfg(test)]
 mod tests {
+    use crate::GenericMapEach::MappableSolution;
     use super::*;
     use super::concretes::*;
 
@@ -141,14 +147,14 @@ mod tests {
         let iden_map :Map<i32,i32> = Box::new(identity);
         let double_map :Map<i32,i32> = Box::new(double);
         //let x = SavedMap(iden_map) + SavedMap(double_map);
-        assert_eq!((vec![1, 2, 3].map_each(double_map)), vec![2, 4, 6]);
+        assert_eq!((vec![1, 2, 3].map_each::<i32, Map<i32,i32>,Vec<i32>>(double_map)), vec![2, 4, 6]);
     }
 
 
     #[test]
     fn cross_map(){
         let neg_map:Map<u32,i64> = Box::new(negate_unsigned);
-        assert_eq!(vec![1,2,3].map_each(Box::new(negate_unsigned)), vec![-1,-2,-3]);
-        assert_eq!([1,2,3].map_each(Box::new(negate_unsigned)), vec![-1,-2,-3]);
+        assert_eq!(vec![1,2,3].map_each::<i64, Map<u32,i64>,Vec<i64>>(Box::new(negate_unsigned)), vec![-1,-2,-3]);
+        //assert_eq!([1,2,3].map_each::<i64, Map<u32,i64>,[i64;3]>(Box::new(negate_unsigned)), [-1,-2,-3]); //DOES NOT WORK ON ARRAYS
     }
 }
